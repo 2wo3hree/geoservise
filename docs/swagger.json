@@ -1,0 +1,145 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "This is a simple geo service using DaData.",
+        "title": "GeoService API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api",
+    "paths": {
+        "/address/geocode": {
+            "post": {
+                "description": "Get city info by latitude and longitude",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "address"
+                ],
+                "summary": "Geocode by coordinates",
+                "parameters": [
+                    {
+                        "description": "coordinates",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.RequestGeocode"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.ResponseAddress"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/address/search": {
+            "post": {
+                "description": "Get city info by address query",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "address"
+                ],
+                "summary": "Search address",
+                "parameters": [
+                    {
+                        "description": "query address",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.RequestAddressSearch"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.ResponseAddress"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "main.Address": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.RequestAddressSearch": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.RequestGeocode": {
+            "type": "object",
+            "properties": {
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                }
+            }
+        },
+        "main.ResponseAddress": {
+            "type": "object",
+            "properties": {
+                "addresses": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/main.Address"
+                    }
+                }
+            }
+        }
+    }
+}

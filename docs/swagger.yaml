@@ -1,0 +1,94 @@
+basePath: /api
+definitions:
+  main.Address:
+    properties:
+      city:
+        type: string
+    type: object
+  main.RequestAddressSearch:
+    properties:
+      query:
+        type: string
+    type: object
+  main.RequestGeocode:
+    properties:
+      lat:
+        type: number
+      lng:
+        type: number
+    type: object
+  main.ResponseAddress:
+    properties:
+      addresses:
+        items:
+          $ref: '#/definitions/main.Address'
+        type: array
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: This is a simple geo service using DaData.
+  title: GeoService API
+  version: "1.0"
+paths:
+  /address/geocode:
+    post:
+      consumes:
+      - application/json
+      description: Get city info by latitude and longitude
+      parameters:
+      - description: coordinates
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.RequestGeocode'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.ResponseAddress'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Geocode by coordinates
+      tags:
+      - address
+  /address/search:
+    post:
+      consumes:
+      - application/json
+      description: Get city info by address query
+      parameters:
+      - description: query address
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.RequestAddressSearch'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.ResponseAddress'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Search address
+      tags:
+      - address
+swagger: "2.0"

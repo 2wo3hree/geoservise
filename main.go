@@ -1,18 +1,24 @@
+// @title GeoService API
+// @version 1.0
+// @description This is a simple geo service using DaData.
+// @host localhost:8080
+// @BasePath /api
 package main
 
 import (
 	"encoding/json"
 	"fmt"
-	"log"
-	"net/http"
-	"os"
-	"strings"
-
+	_ "geoservise/docs"
 	"github.com/ekomobile/dadata/v2"
 	"github.com/ekomobile/dadata/v2/api/suggest"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
+	"github.com/swaggo/http-swagger"
+	"log"
+	"net/http"
+	"os"
+	"strings"
 )
 
 type RequestAddressSearch struct {
@@ -32,22 +38,18 @@ type ResponseAddress struct {
 	Addresses []*Address `json:"addresses"`
 }
 
-func main() {
-	_ = godotenv.Load()
-
-	apiKey := os.Getenv("DADATA_API_KEY")
-	secretKey := os.Getenv("DADATA_SECRET_KEY")
-	if apiKey == "" || secretKey == "" {
-		log.Fatal("Не заданы ключи DADATA_API_KEY и DADATA_SECRET_KEY в окружении")
-	}
-
-	api := dadata.NewSuggestApi()
-
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-
-	r.Post("/api/address/search", func(w http.ResponseWriter, r *http.Request) {
+// @Summary Search address
+// @Description Get city info by address query
+// @Tags address
+// @Accept json
+// @Produce json
+// @Param request body RequestAddressSearch true "query address"
+// @Success 200 {object} ResponseAddress
+// @Failure 400 {string} string "Bad Request"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /address/search [post]
+func handleSearch(api *suggest.Api) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		var req RequestAddressSearch
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Не удалось выполнить декодирование", http.StatusBadRequest)
@@ -74,9 +76,22 @@ func main() {
 		response := ResponseAddress{Addresses: addresses}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-	})
+	}
 
-	r.Post("/api/address/geocode", func(w http.ResponseWriter, r *http.Request) {
+}
+
+// @Summary Geocode by coordinates
+// @Description Get city info by latitude and longitude
+// @Tags address
+// @Accept json
+// @Produce json
+// @Param request body RequestGeocode true "coordinates"
+// @Success 200 {object} ResponseAddress
+// @Failure 400 {string} string "Bad Request"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /address/geocode [post]
+func handleGeocode(api *suggest.Api) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		var req RequestGeocode
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Не удалось выполнить декодирование", http.StatusBadRequest)
@@ -106,7 +121,29 @@ func main() {
 		response := ResponseAddress{Addresses: addresses}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-	})
+	}
+}
+
+func main() {
+	_ = godotenv.Load()
+
+	apiKey := os.Getenv("DADATA_API_KEY")
+	secretKey := os.Getenv("DADATA_SECRET_KEY")
+	if apiKey == "" || secretKey == "" {
+		log.Fatal("Не заданы ключи DADATA_API_KEY и DADATA_SECRET_KEY в окружении")
+	}
+
+	api := dadata.NewSuggestApi()
+
+	r := chi.NewRouter()
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+
+	r.Post("/api/address/search", handleSearch(api))
+	r.Post("/api/address/geocode", handleGeocode(api))
+
+	// Swagger UI
+	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
 	log.Println("Сервер запущен на порту 8080...")
 	err := http.ListenAndServe(":8080", r)
