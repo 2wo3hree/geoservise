@@ -5,6 +5,13 @@ definitions:
       city:
         type: string
     type: object
+  main.Credentials:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
   main.RequestAddressSearch:
     properties:
       query:
@@ -23,6 +30,11 @@ definitions:
         items:
           $ref: '#/definitions/main.Address'
         type: array
+    type: object
+  main.TokenResponse:
+    properties:
+      token:
+        type: string
     type: object
 host: localhost:8080
 info:
@@ -54,10 +66,16 @@ paths:
           description: Bad Request
           schema:
             type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
         "500":
           description: Internal Server Error
           schema:
             type: string
+      security:
+      - ApiKeyAuth: []
       summary: Geocode by coordinates
       tags:
       - address
@@ -84,11 +102,72 @@ paths:
           description: Bad Request
           schema:
             type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
         "500":
           description: Internal Server Error
           schema:
             type: string
+      security:
+      - ApiKeyAuth: []
       summary: Search address
       tags:
       - address
+  /login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: User credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.Credentials'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.TokenResponse'
+        "400":
+          description: bad request
+          schema:
+            type: string
+      summary: Login user
+      tags:
+      - auth
+  /register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: User credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.Credentials'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: user registered
+          schema:
+            type: string
+        "400":
+          description: bad request
+          schema:
+            type: string
+      summary: Register new user
+      tags:
+      - auth
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

@@ -3,6 +3,9 @@
 // @description This is a simple geo service using DaData.
 // @host localhost:8080
 // @BasePath /api
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
 package main
 
 import (
@@ -13,12 +16,15 @@ import (
 	"github.com/ekomobile/dadata/v2/api/suggest"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/jwtauth"
 	"github.com/joho/godotenv"
 	"github.com/swaggo/http-swagger"
+	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 )
 
 type RequestAddressSearch struct {
@@ -38,15 +44,93 @@ type ResponseAddress struct {
 	Addresses []*Address `json:"addresses"`
 }
 
+type Credentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type TokenResponse struct {
+	Token string `json:"token"`
+}
+
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
+var users = make(map[string]string)
+var mu sync.Mutex
+var tokenAuth = jwtauth.New("HS256", []byte("SECRET"), nil)
+
+// @Summary Register new user
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body Credentials true "User credentials"
+// @Success 201 {string} string "user registered"
+// @Failure 400 {string} string "bad request"
+// @Router /register [post]
+func registerHandler(w http.ResponseWriter, r *http.Request) {
+	var creds Credentials
+	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
+		http.Error(w, "Не удалось выполнить декодирование", http.StatusBadRequest)
+		return
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if _, exists := users[creds.Username]; exists {
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Такой юзер уже есть"})
+		return
+	}
+	hashed, err := bcrypt.GenerateFromPassword([]byte(creds.Password), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, "Ошибка при хешировании пароля пользователя", http.StatusInternalServerError)
+		return
+	}
+	users[creds.Username] = string(hashed)
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{"message": "user registered"})
+}
+
+// @Summary Login user
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body Credentials true "User credentials"
+// @Success 200 {object} TokenResponse
+// @Failure 400 {string} string "bad request"
+// @Router /login [post]
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	var creds Credentials
+	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
+		http.Error(w, "Не удалось выполнить декодирование", http.StatusBadRequest)
+		return
+	}
+	mu.Lock()
+	hashed, exists := users[creds.Username]
+	mu.Unlock()
+	if !exists {
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Такого пользователя нету"})
+		return
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(hashed), []byte(creds.Password)); err != nil {
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Неверный пароль"})
+		return
+	}
+	_, tokenString, _ := tokenAuth.Encode(map[string]interface{}{"sub": creds.Username})
+	json.NewEncoder(w).Encode(TokenResponse{Token: tokenString})
+}
+
 // @Summary Search address
 // @Description Get city info by address query
 // @Tags address
+// @Security ApiKeyAuth
 // @Accept json
 // @Produce json
 // @Param request body RequestAddressSearch true "query address"
 // @Success 200 {object} ResponseAddress
 // @Failure 400 {string} string "Bad Request"
 // @Failure 500 {string} string "Internal Server Error"
+// @Failure 403 {string} string "Forbidden"
 // @Router /address/search [post]
 func handleSearch(api *suggest.Api) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -83,12 +167,14 @@ func handleSearch(api *suggest.Api) http.HandlerFunc {
 // @Summary Geocode by coordinates
 // @Description Get city info by latitude and longitude
 // @Tags address
+// @Security ApiKeyAuth
 // @Accept json
 // @Produce json
 // @Param request body RequestGeocode true "coordinates"
 // @Success 200 {object} ResponseAddress
 // @Failure 400 {string} string "Bad Request"
 // @Failure 500 {string} string "Internal Server Error"
+// @Failure 403 {string} string "Forbidden"
 // @Router /address/geocode [post]
 func handleGeocode(api *suggest.Api) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -139,8 +225,15 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	r.Post("/api/address/search", handleSearch(api))
-	r.Post("/api/address/geocode", handleGeocode(api))
+	r.Post("/api/register", registerHandler)
+	r.Post("/api/login", loginHandler)
+
+	r.Group(func(r chi.Router) {
+		r.Use(jwtauth.Verifier(tokenAuth))
+		r.Use(jwtauth.Authenticator)
+		r.Post("/api/address/search", handleSearch(api))
+		r.Post("/api/address/geocode", handleGeocode(api))
+	})
 
 	// Swagger UI
 	r.Get("/swagger/*", httpSwagger.WrapHandler)
