@@ -3,6 +3,6 @@ services:
     build: .
     ports:
       - "8080:8080"
-    environment:
-      - DADATA_API_KEY
-      - DADATA_SECRET_KEY
+#    environment:
+#      - DADATA_API_KEY
+#      - DADATA_SECRET_KEY
