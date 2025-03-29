@@ -25,7 +25,7 @@ RUN apk --no-cache add ca-certificates
 COPY --from=builder /app/server .
 
 # Копируем файл .env
-#COPY .env ./
+COPY .env ./
 
 # Открываем порт
 EXPOSE 8080
