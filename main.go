@@ -37,7 +37,19 @@ type RequestGeocode struct {
 }
 
 type Address struct {
-	City string `json:"city"`
+	City         string      `json:"city"`
+	Source       string      `json:"source"`
+	Result       string      `json:"result"`
+	PostalCode   string      `json:"postal_code"`
+	Country      string      `json:"country"`
+	Region       string      `json:"region"`
+	CityArea     string      `json:"city_area"`
+	CityDistrict string      `json:"city_district"`
+	Street       string      `json:"street"`
+	House        string      `json:"house"`
+	GeoLat       string      `json:"geo_lat"`
+	GeoLon       string      `json:"geo_lon"`
+	QCGeo        interface{} `json:"qc_geo"`
 }
 
 type ResponseAddress struct {
@@ -117,6 +129,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, tokenString, _ := tokenAuth.Encode(map[string]interface{}{"sub": creds.Username})
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(TokenResponse{Token: tokenString})
 }
 
@@ -153,8 +166,20 @@ func handleSearch(api *suggest.Api) http.HandlerFunc {
 
 		addresses := make([]*Address, 0, len(suggestions))
 		for _, s := range suggestions {
-			city := s.Data.City
-			addresses = append(addresses, &Address{City: city})
+			addresses = append(addresses, &Address{
+				Source:       req.Query,
+				Result:       s.Value,
+				PostalCode:   s.Data.PostalCode,
+				Country:      s.Data.Country,
+				Region:       s.Data.Region,
+				CityArea:     s.Data.CityArea,
+				CityDistrict: s.Data.CityDistrict,
+				Street:       s.Data.Street,
+				House:        s.Data.House,
+				GeoLat:       s.Data.GeoLat,
+				GeoLon:       s.Data.GeoLon,
+				QCGeo:        s.Data.QualityCodeGeoRaw,
+			})
 		}
 
 		response := ResponseAddress{Addresses: addresses}
@@ -200,8 +225,19 @@ func handleGeocode(api *suggest.Api) http.HandlerFunc {
 
 		addresses := make([]*Address, 0, len(suggestions))
 		for _, s := range suggestions {
-			city := s.Data.City
-			addresses = append(addresses, &Address{City: city})
+			addresses = append(addresses, &Address{
+				Result:       s.Value,
+				PostalCode:   s.Data.PostalCode,
+				Country:      s.Data.Country,
+				Region:       s.Data.Region,
+				CityArea:     s.Data.CityArea,
+				CityDistrict: s.Data.CityDistrict,
+				Street:       s.Data.Street,
+				House:        s.Data.House,
+				GeoLat:       s.Data.GeoLat,
+				GeoLon:       s.Data.GeoLon,
+				QCGeo:        s.Data.QualityCodeGeoRaw,
+			})
 		}
 
 		response := ResponseAddress{Addresses: addresses}
